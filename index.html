@@ -29,6 +29,27 @@
   --orb: 'Orbitron', sans-serif;
 }
 
+/* 라이트 테마 */
+[data-theme="light"] {
+  --bg: #f0f4f8;
+  --bg2: #ffffff;
+  --bg3: #e8eef5;
+  --border: #c8d8e8;
+  --border2: #a8c0d8;
+  --accent: #0077aa;
+  --accent2: #005588;
+  --green: #007744;
+  --green2: #005533;
+  --red: #cc1144;
+  --red2: #aa0033;
+  --yellow: #996600;
+  --yellow2: #774400;
+  --orange: #cc5500;
+  --text: #1a2a3a;
+  --text2: #2a4a6a;
+  --text3: #5a7a9a;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -740,6 +761,7 @@ canvas#volumeChart { width: 100% !important; }
     </div>
   </div>
   <div class="header-right">
+    <button id="themeToggle" onclick="toggleTheme()" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:20px;padding:6px 14px;font-family:var(--sans);font-size:12px;cursor:pointer;transition:all 0.2s;">🌙 다크</button>
     <div class="market-clock">
       <div id="clockDisplay">--:--:--</div>
       <div id="marketInfo" style="margin-top:3px;"></div>
@@ -770,7 +792,7 @@ canvas#volumeChart { width: 100% !important; }
           <input class="ticker-input" id="krInput" placeholder="005930 (삼성전자) ..." style="flex:1;">
         </div>
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-primary" id="scanBtn" style="flex:1;" onclick="runScan()">
+          <button class="btn btn-primary" id="scanBtn" style="flex:1;font-size:14px;padding:12px 16px;font-family:var(--sans);letter-spacing:0px;" onclick="runScan()">
             🔍 스캔 실행
           </button>
           <button class="btn" style="background:var(--bg);border:1px solid var(--border2);color:var(--text2);" onclick="addToWatchlist()">⭐</button>
@@ -1015,6 +1037,33 @@ document.querySelectorAll('.signal-check').forEach(el => {
 });
 
 // ===================== 시계 & 시장 상태 =====================
+// ===================== 테마 토글 =====================
+function toggleTheme() {
+  const html = document.documentElement;
+  const btn = document.getElementById('themeToggle');
+  if (html.getAttribute('data-theme') === 'light') {
+    html.removeAttribute('data-theme');
+    btn.textContent = '🌙 다크';
+    localStorage.setItem('sh_theme', 'dark');
+  } else {
+    html.setAttribute('data-theme', 'light');
+    btn.textContent = '☀️ 라이트';
+    localStorage.setItem('sh_theme', 'light');
+  }
+}
+
+// 저장된 테마 복원
+(function() {
+  const saved = localStorage.getItem('sh_theme');
+  if (saved === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    setTimeout(() => {
+      const btn = document.getElementById('themeToggle');
+      if (btn) btn.textContent = '☀️ 라이트';
+    }, 100);
+  }
+})();
+
 function updateClock() {
   const now = new Date();
   document.getElementById('clockDisplay').textContent = now.toLocaleTimeString('ko-KR');
@@ -1725,8 +1774,9 @@ function drawVolumeChart(canvasId, history, avgVol) {
 
     // 날짜 라벨
     ctx.fillStyle = 'rgba(61,90,115,0.9)';
-    ctx.font = '8px Space Mono, monospace';
-    ctx.fillText(h.date, x - 2, H - 4);
+    ctx.font = 'bold 10px Noto Sans KR, sans-serif';
+    ctx.fillStyle = 'rgba(120,160,190,0.9)';
+    ctx.fillText(h.date, x - 2, H - 3);
   });
 }
 
