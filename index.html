@@ -1604,7 +1604,7 @@ function renderResults(results) {
         const pureCode = d.symbol.replace('.KS','').replace('.KQ','');
         linkHtml = `<a href="https://dart.fss.or.kr/dsab007/main.do?autoSearch=true&textCrpNm=${encodeURIComponent(d.name||pureCode)}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📋 DART 공시 원문 보기 →</a>`;
       } else if (key === 'new_contract' && sig.newsUrl) {
-        linkHtml = \`<a href=\"\${sig.newsUrl}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📰 뉴스 원문 보기 →</a>\`;
+        linkHtml = `<a href="${sig.newsUrl}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📰 뉴스 원문 보기 →</a>`;
       } else if (key === 'sec_filing' && sig.active && d.symbol) {
         linkHtml = `<a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(d.symbol)}&type=8-K&dateb=&owner=include&count=10" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📋 SEC EDGAR 원문 보기 →</a>`;
       }
