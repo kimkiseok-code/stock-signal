@@ -1177,6 +1177,25 @@ async function fetchStockData(symbol, market) {
     parsed = generateDemoData(symbol, market);
   }
 
+  // SEC 공시 실시간 조회 (미국 종목)
+  if (market === 'US') {
+    try {
+      const secR = await fetch(
+        API_BASE + '/api/disclosure?type=sec&symbol=' + encodeURIComponent(symbol),
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (secR.ok) {
+        const secData = await secR.json();
+        const hits = secData.hits?.hits || [];
+        parsed.secFilings = hits.length;
+        parsed.secTypes = [...new Set(hits.map(h => h._source?.file_type || h._source?.form_type).filter(Boolean))];
+      }
+    } catch (e) {
+      parsed.secFilings = 0;
+      parsed.secTypes = [];
+    }
+  }
+
   // 시그널 계산
   parsed.signals = calcSignals(parsed);
   return parsed;
@@ -1215,14 +1234,21 @@ function calcSignals(d) {
     };
   }
 
-  // SEC 공시 (심볼 기반 더미 → 실제는 API 결과로 교체)
+  // SEC 공시 (실제 API 결과 반영)
   if (state.activeSignals.has('sec_filing') && d.market === 'US') {
+    const secCount = d.secFilings || 0;
+    const secTypes = d.secTypes || [];
+    const hasDilution = secTypes.some(t => ['S-3','S-1','424B'].includes(t));
+    const hasEvent = secTypes.some(t => ['8-K','6-K'].includes(t));
     sigs.sec_filing = {
-      active: false,
-      value: '조회 필요',
-      impact: 'neutral',
-      desc: 'SEC EDGAR 공시는 Vercel 프록시 배포 후 실시간 조회됩니다',
-      score: 0
+      active: secCount > 0,
+      value: secCount > 0 ? secCount + '건' : '없음',
+      impact: hasDilution ? 'negative' : hasEvent ? 'positive' : 'neutral',
+      desc: secCount === 0 ? '최근 14일 SEC 공시 없음' :
+            hasDilution ? '⚠️ 증자/희석 관련 공시 감지: ' + secTypes.join(', ') :
+            hasEvent ? '📋 주요 이벤트 공시: ' + secTypes.join(', ') :
+            '공시 ' + secCount + '건 발생: ' + secTypes.join(', '),
+      score: hasDilution ? 70 : hasEvent ? 65 : 30
     };
   }
 
