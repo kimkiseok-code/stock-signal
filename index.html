@@ -1169,28 +1169,54 @@ async function runScan() {
 // ===================== Yahoo Finance 데이터 수집 =====================
 // KR 종목 KOSPI/KOSDAQ 자동 판별
 async function fetchStockDataKR(code) {
-  // KOSPI 우선 시도 → 실패하거나 이상한 데이터면 KOSDAQ 시도
+  // 1단계: 네이버 금융 실시간 데이터 (가장 정확)
+  let naverData = null;
+  try {
+    const nr = await fetch(API_BASE + '/api/naver?code=' + code, { signal: AbortSignal.timeout(8000) });
+    if (nr.ok) {
+      const nd = await nr.json();
+      if (nd.price && nd.price > 0) naverData = nd;
+    }
+  } catch (e) { console.warn('Naver fetch error:', e); }
+
+  // 2단계: Yahoo Finance로 거래량 히스토리 등 추가 데이터 수집
   const trySymbol = async (suffix) => {
     try {
       const result = await fetchStockData(code + suffix, 'KR');
-      // 종목명에 콤마가 있거나 code가 포함되어 있으면 잘못된 데이터
-      if (result && result.name && !result.name.includes(',') && !result.name.includes(code)) {
-        return result;
-      }
+      if (result && result.name && !result.name.includes(',') && !result.name.includes(code)) return result;
       return null;
     } catch { return null; }
   };
 
-  // KOSPI 먼저 시도
-  const kospi = await trySymbol('.KS');
-  if (kospi) return kospi;
+  let yahooResult = await trySymbol('.KS') || await trySymbol('.KQ') || await fetchStockData(code + '.KS', 'KR');
 
-  // KOSDAQ 시도
-  const kosdaq = await trySymbol('.KQ');
-  if (kosdaq) return kosdaq;
+  // 3단계: 네이버 데이터가 있으면 가격/등락률을 네이버로 교체 (정확도 우선)
+  if (naverData && yahooResult) {
+    yahooResult.price = naverData.price;
+    yahooResult.changePercent = naverData.changePercent;
+    yahooResult.prevClose = naverData.prevClose || yahooResult.prevClose;
+    yahooResult.volume = naverData.volume || yahooResult.volume;
+    if (naverData.name && !naverData.name.includes(',')) yahooResult.name = naverData.name;
+    yahooResult.dataSource = 'naver+yahoo';
+  } else if (naverData) {
+    // 야후 실패 시 네이버만으로 구성
+    yahooResult = {
+      symbol: code + '.KS', market: 'KR',
+      name: naverData.name || code,
+      price: naverData.price,
+      changePercent: naverData.changePercent,
+      prevClose: naverData.prevClose,
+      volume: naverData.volume,
+      avgVolume: naverData.volume,
+      volRatio: 1, rsi: 50,
+      high52: naverData.price * 1.3,
+      low52: naverData.price * 0.7,
+      volumeHistory: [], rawVolumes: [], rawCloses: [],
+      dataSource: 'naver_only'
+    };
+  }
 
-  // 둘 다 실패하면 KOSPI 결과라도 반환
-  return await fetchStockData(code + '.KS', 'KR');
+  return yahooResult;
 }
 
 async function fetchStockData(symbol, market) {
