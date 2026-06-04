@@ -1132,7 +1132,7 @@ async function runScan() {
   try {
     const [usData, krData] = await Promise.allSettled([
       us ? fetchStockData(us, 'US') : Promise.resolve(null),
-      kr ? fetchStockData(kr + '.KS', 'KR') : Promise.resolve(null)
+      kr ? fetchStockDataKR(kr) : Promise.resolve(null)
     ]);
 
     const results = [];
@@ -1167,6 +1167,32 @@ async function runScan() {
 }
 
 // ===================== Yahoo Finance 데이터 수집 =====================
+// KR 종목 KOSPI/KOSDAQ 자동 판별
+async function fetchStockDataKR(code) {
+  // KOSPI 우선 시도 → 실패하거나 이상한 데이터면 KOSDAQ 시도
+  const trySymbol = async (suffix) => {
+    try {
+      const result = await fetchStockData(code + suffix, 'KR');
+      // 종목명에 콤마가 있거나 code가 포함되어 있으면 잘못된 데이터
+      if (result && result.name && !result.name.includes(',') && !result.name.includes(code)) {
+        return result;
+      }
+      return null;
+    } catch { return null; }
+  };
+
+  // KOSPI 먼저 시도
+  const kospi = await trySymbol('.KS');
+  if (kospi) return kospi;
+
+  // KOSDAQ 시도
+  const kosdaq = await trySymbol('.KQ');
+  if (kosdaq) return kosdaq;
+
+  // 둘 다 실패하면 KOSPI 결과라도 반환
+  return await fetchStockData(code + '.KS', 'KR');
+}
+
 async function fetchStockData(symbol, market) {
   let priceData = null, volumeHistory = [];
 
