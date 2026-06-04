@@ -1213,8 +1213,17 @@ async function fetchStockData(symbol, market) {
     const high52 = Math.max(...recentClose);
     const low52 = Math.min(...recentClose);
     const currentPrice = meta.regularMarketPrice || recentClose[recentClose.length-1] || 0;
-    const prevClose = meta.chartPreviousClose || recentClose[recentClose.length-2] || currentPrice;
-    const changePercent = prevClose ? ((currentPrice - prevClose) / prevClose * 100) : 0;
+    // regularMarketChangePercent 우선 사용 (가장 정확), 없으면 regularMarketChange로 계산
+    let changePercent = 0;
+    if (meta.regularMarketChangePercent !== undefined && meta.regularMarketChangePercent !== null) {
+      changePercent = meta.regularMarketChangePercent;
+    } else if (meta.regularMarketChange !== undefined && meta.regularMarketChange !== null && currentPrice > 0) {
+      changePercent = (meta.regularMarketChange / (currentPrice - meta.regularMarketChange)) * 100;
+    } else {
+      const prevClose = meta.chartPreviousClose || recentClose[recentClose.length-2] || currentPrice;
+      changePercent = prevClose ? ((currentPrice - prevClose) / prevClose * 100) : 0;
+    }
+    const prevClose = meta.regularMarketPreviousClose || meta.chartPreviousClose || recentClose[recentClose.length-2] || currentPrice;
 
     // 거래량 히스토리 (차트용)
     volumeHistory = timestamps.slice(-15).map((t, i) => ({
