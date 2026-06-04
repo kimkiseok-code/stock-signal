@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/api/yahoo", "destination": "/api/yahoo.js" },
     { "source": "/api/disclosure", "destination": "/api/disclosure.js" },
-    { "source": "/api/analyze", "destination": "/api/analyze.js" }
+    { "source": "/api/analyze", "destination": "/api/analyze.js" },
+    { "source": "/api/news", "destination": "/api/news.js" }
   ]
 }
