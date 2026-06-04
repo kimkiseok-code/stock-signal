@@ -1196,6 +1196,26 @@ async function fetchStockData(symbol, market) {
     }
   }
 
+  // DART 공시 실시간 조회 (한국 종목)
+  if (market === 'KR') {
+    try {
+      const pureCode = symbol.replace('.KS','').replace('.KQ','');
+      const dartR = await fetch(
+        API_BASE + '/api/disclosure?type=dart&stockCode=' + pureCode,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (dartR.ok) {
+        const dartData = await dartR.json();
+        const list = dartData.list || [];
+        parsed.dartFilings = list.length;
+        parsed.dartTypes = [...new Set(list.map(h => h.report_nm).filter(Boolean))].slice(0, 5);
+      }
+    } catch (e) {
+      parsed.dartFilings = 0;
+      parsed.dartTypes = [];
+    }
+  }
+
   // 시그널 계산
   parsed.signals = calcSignals(parsed);
   return parsed;
@@ -1252,14 +1272,21 @@ function calcSignals(d) {
     };
   }
 
-  // DART 공시
+  // DART 공시 (실제 API 결과 반영)
   if (state.activeSignals.has('dart_filing') && d.market === 'KR') {
+    const dartCount = d.dartFilings || 0;
+    const dartTypes = d.dartTypes || [];
+    const hasCapital = dartTypes.some(t => t.includes('유상') || t.includes('증자') || t.includes('전환'));
+    const hasContract = dartTypes.some(t => t.includes('계약') || t.includes('수주') || t.includes('협약'));
     sigs.dart_filing = {
-      active: false,
-      value: '조회 필요',
-      impact: 'neutral',
-      desc: 'DART API 키 설정 후 실시간 공시 조회됩니다',
-      score: 0
+      active: dartCount > 0,
+      value: dartCount > 0 ? dartCount + '건' : '없음',
+      impact: hasCapital ? 'negative' : hasContract ? 'positive' : dartCount > 0 ? 'neutral' : 'neutral',
+      desc: dartCount === 0 ? '최근 30일 DART 공시 없음' :
+            hasCapital ? '⚠️ 증자/자본 관련 공시 감지' :
+            hasContract ? '🤝 계약/수주 공시 감지' :
+            '공시 ' + dartCount + '건 발생',
+      score: hasCapital ? 70 : hasContract ? 75 : dartCount > 0 ? 50 : 20
     };
   }
 
