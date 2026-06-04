@@ -1568,6 +1568,15 @@ function renderResults(results) {
       const barWidth = Math.min(100, sig.score || 0);
       const barColor = sig.impact === 'positive' ? 'var(--green)' : sig.impact === 'negative' ? 'var(--red)' : sig.impact === 'warning' ? 'var(--yellow)' : 'var(--accent)';
 
+      // DART/SEC 링크 생성
+      let linkHtml = '';
+      if (key === 'dart_filing' && sig.active && d.symbol) {
+        const pureCode = d.symbol.replace('.KS','').replace('.KQ','');
+        linkHtml = `<a href="https://dart.fss.or.kr/dsab007/main.do?autoSearch=true&textCrpNm=${encodeURIComponent(d.name||pureCode)}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📋 DART 공시 원문 보기 →</a>`;
+      } else if (key === 'sec_filing' && sig.active && d.symbol) {
+        linkHtml = `<a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(d.symbol)}&type=8-K&dateb=&owner=include&count=10" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📋 SEC EDGAR 원문 보기 →</a>`;
+      }
+
       return `
       <div class="signal-card ${cardClass}">
         <div class="signal-card-header">
@@ -1576,7 +1585,8 @@ function renderResults(results) {
         </div>
         <div class="signal-value" style="color:${barColor}">${sig.value}</div>
         <div class="signal-desc">${sig.desc}</div>
-        <div class="signal-bar">
+        ${linkHtml}
+        <div class="signal-bar" style="margin-top:8px;">
           <div class="signal-bar-fill" style="width:${barWidth}%;background:${barColor};"></div>
         </div>
       </div>`;
