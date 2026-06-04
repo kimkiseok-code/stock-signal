@@ -1196,6 +1196,21 @@ async function fetchStockData(symbol, market) {
     }
   }
 
+  // 뉴스 실시간 조회 (미국/한국 공통)
+  try {
+    const newsSymbol = market === 'KR' ? (parsed.name || symbol.replace('.KS','').replace('.KQ','')) : symbol;
+    const newsR = await fetch(
+      API_BASE + '/api/news?q=' + encodeURIComponent(newsSymbol),
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (newsR.ok) {
+      const newsData = await newsR.json();
+      parsed.newsItems = (newsData.articles || []).slice(0, 10);
+    }
+  } catch (e) {
+    parsed.newsItems = [];
+  }
+
   // DART 공시 실시간 조회 (한국 종목)
   if (market === 'KR') {
     try {
@@ -1318,12 +1333,27 @@ function calcSignals(d) {
 
   // 신규 계약 발표 (뉴스 키워드 기반 — 프록시 배포 후 실시간)
   if (state.activeSignals.has('new_contract')) {
+    const news = d.newsItems || [];
+    const contractNews = news.filter(n => {
+      const t = (n.title + ' ' + (n.description||'')).toLowerCase();
+      return t.includes('contract') || t.includes('deal') || t.includes('agreement') ||
+             t.includes('partnership') || t.includes('award') || t.includes('win') ||
+             t.includes('계약') || t.includes('수주') || t.includes('협약') || t.includes('체결');
+    });
+    const negNews = news.filter(n => {
+      const t = (n.title + ' ' + (n.description||'')).toLowerCase();
+      return t.includes('lawsuit') || t.includes('fraud') || t.includes('investigation') ||
+             t.includes('recall') || t.includes('소송') || t.includes('수사') || t.includes('리콜');
+    });
     sigs.new_contract = {
-      active: false,
-      value: '뉴스 스캔 필요',
-      impact: 'neutral',
-      desc: 'NewsAPI 연동 후 계약 키워드 실시간 탐지됩니다',
-      score: 0
+      active: contractNews.length > 0 || negNews.length > 0,
+      value: contractNews.length > 0 ? contractNews.length + '건 계약' : negNews.length > 0 ? '부정 뉴스' : '없음',
+      impact: negNews.length > 0 ? 'negative' : contractNews.length > 0 ? 'positive' : 'neutral',
+      desc: contractNews.length > 0 ? '🤝 ' + contractNews[0].title.slice(0,60) + '...' :
+            negNews.length > 0 ? '⚠️ ' + negNews[0].title.slice(0,60) + '...' :
+            '최근 계약/이슈 뉴스 없음',
+      score: contractNews.length > 0 ? 75 : negNews.length > 0 ? 65 : 20,
+      newsUrl: contractNews[0]?.url || negNews[0]?.url || null
     };
   }
 
@@ -1573,6 +1603,8 @@ function renderResults(results) {
       if (key === 'dart_filing' && sig.active && d.symbol) {
         const pureCode = d.symbol.replace('.KS','').replace('.KQ','');
         linkHtml = `<a href="https://dart.fss.or.kr/dsab007/main.do?autoSearch=true&textCrpNm=${encodeURIComponent(d.name||pureCode)}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📋 DART 공시 원문 보기 →</a>`;
+      } else if (key === 'new_contract' && sig.newsUrl) {
+        linkHtml = \`<a href=\"\${sig.newsUrl}" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📰 뉴스 원문 보기 →</a>\`;
       } else if (key === 'sec_filing' && sig.active && d.symbol) {
         linkHtml = `<a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=${encodeURIComponent(d.symbol)}&type=8-K&dateb=&owner=include&count=10" target="_blank" style="font-family:var(--mono);font-size:10px;color:var(--accent);text-decoration:none;margin-top:6px;display:inline-block;border:1px solid var(--border2);padding:3px 8px;border-radius:4px;">📋 SEC EDGAR 원문 보기 →</a>`;
       }
